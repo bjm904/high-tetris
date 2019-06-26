@@ -12,7 +12,7 @@ const drawGame = (context, gameData) => {
 
   // Draw all the blocks
   gameData.blocks.forEach((block) => {
-    block.draw(context, gameData.gridSize.size);
+    block.draw(gameData, context, gameData.gridSize.size);
   });
 
   if (gameData.status === 'win') {

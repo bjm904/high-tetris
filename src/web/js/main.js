@@ -1,29 +1,43 @@
 import { Block, blockInit } from './block.js';
-import PressedKeys from './controls.js';
 import { drawInit, drawLoop } from './draw.js';
+import PlaySound from './sound.js';
+import PressedKeys from './controls.js';
 import socket from './websocket.js';
 
 let GAME;
 
 const GameLoop = () => {
-  if (Date.now() - GAME.lastTickTime > GAME.tickInterval) {
-    GAME.lastTickTime = Date.now();
+  if (GAME.status === 'waiting' && PressedKeys.has(32)) {
+    GAME.status = 'ready';
+  } else if (GAME.status === 'lose' && PressedKeys.has(32)) {
+    GAME.status = 'ready';
+  } else if (GAME.status === 'running') {
+    GAME.rows.forEach((rowValue, rowNum) => {
+      GAME.rows[rowNum] = 0;
+    });
+    let thereIsAnActiveBlock = false;
+    GAME.blocks.forEach((block) => {
+      if (block.isActive) {
+        // Set our flag for knowign there is an active block
+        thereIsAnActiveBlock = true;
 
-    if (GAME.status === 'waiting' && PressedKeys.has(32)) {
-      GAME.status = 'ready';
-    } else if (GAME.status === 'running') {
-      let thereIsAnActiveBlock = false;
-      const rows = [];
-      GAME.blocks.forEach((block) => {
-        if (block.isActive) {
-          // Set our flag for knowign there is an active block
-          thereIsAnActiveBlock = true;
+        const movementDelta = {
+          x: 0,
+          y: 0,
+        };
 
-          const movementDelta = {
-            x: 0,
-            y: 1,
-          };
+        let modifiedGravityInverval = GAME.gravityInterval;
+        // If arrow down is pressed, allow gravity to run more often and increase speed
+        if (PressedKeys.has(40) || PressedKeys.has(83)) {
+          modifiedGravityInverval = 5;
+        }
+        if (Date.now() - GAME.lastGravityTime > modifiedGravityInverval) {
+          GAME.lastGravityTime = Date.now();
+          movementDelta.y += 0.2;
+        }
 
+        if (Date.now() - GAME.lastConrolTime > GAME.controlInterval) {
+          GAME.lastConrolTime = Date.now();
           if (PressedKeys.has(37) || PressedKeys.has(65)) {
             // Left Arrow
             movementDelta.x = -1;
@@ -31,54 +45,48 @@ const GameLoop = () => {
             // Right Arrow
             movementDelta.x = 1;
           }
-          if (PressedKeys.has(40) || PressedKeys.has(83)) {
-            // Down Arrow
-            movementDelta.y = 2;
-          }
-
-          block.tryToApplyMovement(movementDelta);
         }
 
-        block.subBlocks.forEach((subBlock) => {
-          rows[subBlock.y] = rows[subBlock.y] || 0;
-          rows[subBlock.y] += 1;
-        });
+        block.tryToApplyMovement(movementDelta);
+      }
+
+      block.subBlocks.forEach((subBlock) => {
+        GAME.rows[Math.round(subBlock.y)] = GAME.rows[Math.round(subBlock.y)] || 0;
+        GAME.rows[Math.round(subBlock.y)] += 1;
       });
+    });
 
-      // Check for full rows
-      rows.forEach((row, rowNum) => {
-        if (row > GAME.gridSize.width * 0.5) {
-          if (!GAME.rowAlreadyCounted[rowNum]) {
-            GAME.rowAlreadyCounted[rowNum] = true;
-            socket.send({
-              command: 'removeRow',
-            });
-          }
-        }
-      });
-
-      if (!thereIsAnActiveBlock) {
-        // If there is no active block, check for win then spawn another
-
-        // Check for win
-        const win = GAME.blocks.some(block => (
-          block.subBlocks.some(subBlock => (
-            subBlock.y === 0
-          ))
-        ));
-
-        if (win) {
-          GAME.status = 'win';
-        } else if (GAME.status === 'running') {
-          // Spawn new block
-          const newBlock = new Block();
-          GAME.blocks.push(newBlock);
+    // Check for full rows
+    GAME.rows.forEach((rowValue, rowNum) => {
+      if (rowValue >= GAME.gridSize.width * 0.7) {
+        if (!GAME.rowAlreadyCounted[rowNum]) {
+          GAME.rowAlreadyCounted[rowNum] = true;
+          socket.send({
+            command: 'removeRow',
+          });
+          PlaySound('clearRow');
         }
       }
-    }
+    });
 
-    socket.sendGameStateUpdate();
+    if (!thereIsAnActiveBlock) {
+      // If there is no active block, check for win then spawn another
+
+      // Check for win
+      const win = GAME.rows.every(rowValue => rowValue && rowValue > 0);
+
+      if (win) {
+        GAME.status = 'win';
+      } else if (GAME.status === 'running') {
+        // Spawn new block
+        PlaySound('blockSet');
+        const newBlock = new Block();
+        GAME.blocks.push(newBlock);
+      }
+    }
   }
+
+  socket.sendGameStateUpdate();
   requestAnimationFrame(GameLoop);
 };
 
@@ -90,20 +98,23 @@ const gameInit = () => {
     id: Math.random(),
     blocks: [],
     gridSize: {
-      height: 32,
-      width: 24,
+      height: 30,
+      width: 15,
       size: 20,
     },
-    lastTickTime: 0,
-    tickInterval: 40,
+    lastGravityTime: 0,
+    gravityInterval: 20,
+    lastConrolTime: 0,
+    controlInterval: 100,
     status: 'waiting',
     opponents: [],
     rowAlreadyCounted: [],
     flashScreen: false,
   };
+  GAME.rows = [...new Array(GAME.gridSize.height)];
 
   const gameContainer = document.getElementById('gameContainer');
-  gameContainer.innerHTML = '<canvas class="gameCanvas" id="gameCanvas" height="640" width="480" />';
+  gameContainer.innerHTML = '<canvas class="gameCanvas" id="gameCanvas" height="600" width="300" />';
 };
 
 gameInit();

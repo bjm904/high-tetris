@@ -1,4 +1,5 @@
 import { Block } from './block.js';
+import PlaySound from './sound.js';
 
 let GAME;
 
@@ -23,13 +24,13 @@ const onmessage = (event) => {
       const canvasElementOpponent = document.getElementById(`gameCanvas-${newOpponentData.id}`);
       if (!canvasElementOpponent) {
         const gameContainer = document.getElementById('gameContainer');
-        gameContainer.innerHTML += `<canvas class="gameCanvas gameCanvasOpponent" id="gameCanvas-${newOpponentData.id}" height="640" width="480" />`;
+        gameContainer.innerHTML += `<canvas class="gameCanvas gameCanvasOpponent" id="gameCanvas-${newOpponentData.id}" height="600" width="300" />`;
       }
 
       GAME.opponents.push(newOpponentData);
     }
 
-    if (newOpponentData.status === 'win') {
+    if (newOpponentData.status === 'win' && GAME.status === 'running') {
       GAME.status = 'lose';
     }
   } else if (message.command === 'opponentLeaving') {
@@ -43,10 +44,16 @@ const onmessage = (event) => {
   } else if (message.command === 'beginGame') {
     GAME.status = 'running';
   } else if (message.command === 'removeRow') {
-    GAME.blocks.forEach((block) => {
-      block.applyMovement({ x: 0, y: 5 });
-    });
-    GAME.flashScreen = true;
+    PlaySound('clearRow');
+    const sinkInterval = setInterval(() => {
+      GAME.blocks.forEach((block) => {
+        block.applyMovement({ x: 0, y: 0.2 });
+      });
+    }, 20);
+    setTimeout(() => {
+      clearInterval(sinkInterval);
+    }, 500);
+    //GAME.flashScreen = true;
     setTimeout(() => {
       GAME.flashScreen = false;
     }, 200);

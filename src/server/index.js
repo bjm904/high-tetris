@@ -15,6 +15,13 @@ wss.on('connection', (ws) => {
   clients.push(ws);
   console.log(`Connected ${ws.id}`);
 
+  
+  clients.forEach((client) => {
+    if (client.id !== ws.id && client.lastGameData) {
+      ws.send(JSON.stringify(client.lastGameData));
+    }
+  });
+
   ws.on('message', (messageRaw) => {
     const message = JSON.parse(messageRaw);
 
@@ -42,7 +49,7 @@ wss.on('connection', (ws) => {
       });
     }
 
-    if (clients.length > 1) {
+    if (clients.length > 0) {
       const allClientsInReadyStatus = clients.every(c => c.lastGameData && c.lastGameData.status === 'ready');
       if (allClientsInReadyStatus) {
         const beginMessage = {

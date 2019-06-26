@@ -4,21 +4,20 @@ const blockInit = (gameGlobal) => {
   GAME = gameGlobal;
 };
 
-
 const blockColors = [
   'red',
   'cyan',
   'green',
   'magenta',
-  'white',
+  'orangered',
   'blue',
   'pink',
   'purple',
 ];
 
 const getBlockSpawnPosition = () => ({
-  x: GAME.gridSize.width / 2,
-  y: -1,
+  x: Math.floor(Math.random() * (GAME.gridSize.width - 5)) + 1,
+  y: 0,
 });
 
 const blockStructures = [
@@ -43,6 +42,24 @@ const blockStructures = [
   [
     { x: 0, y: 0 },
     { x: 0, y: 1 },
+    { x: 1, y: 0 },
+    { x: 2, y: 0 },
+  ],
+  [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 1, y: 2 },
+  ],
+  [
+    { x: 0, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1, y: 1 },
+    { x: 2, y: 1 },
+  ],
+  [
+    { x: 0, y: 0 },
+    { x: 0, y: 1 },
     { x: 1, y: 1 },
     { x: 1, y: 2 },
   ],
@@ -51,6 +68,19 @@ const blockStructures = [
     { x: 1, y: 0 },
     { x: 2, y: 0 },
     { x: 1, y: 1 },
+  ],
+  [
+    { x: 0, y: 1 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 2, y: 0 },
+  ],
+  [
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: 2 },
+    { x: 1, y: 2 },
+    { x: 2, y: 2 },
   ],
 ];
 
@@ -74,29 +104,44 @@ class Block {
 
   applyMovement(movementDelta) {
     this.subBlocks.forEach((subBlock) => {
-      subBlock.x += movementDelta.x;
-      subBlock.y += movementDelta.y;
+      subBlock.x = Math.round((movementDelta.x + subBlock.x) * 10) / 10;
+      subBlock.y = Math.round((movementDelta.y + subBlock.y) * 10) / 10;
     });
   }
 
-  draw(context, size) {
-    // Set the color for this block
-    context.strokeStyle = this.color;
-
-    context.beginPath();
-
+  draw(gameData, context, size) {
     // Draw each sub block
     this.subBlocks.forEach((subBlock) => {
-      context.rect(
-        size * subBlock.x + 1,
-        size * subBlock.y + 1,
-        size - 2,
-        size - 2,
-      );
-    });
+      context.beginPath();
 
-    // Draw the block
-    context.stroke();
+      const percComplete = (gameData.rows[Math.round(subBlock.y)] / gameData.gridSize.width) / 0.7;
+      if (percComplete >= 1) {
+        // Row is complete
+        context.strokeStyle = '#FFF';
+        context.rect(
+          size * subBlock.x,
+          size * subBlock.y,
+          size,
+          size,
+        );
+      } else {
+        // Set the color for this block
+        context.strokeStyle = this.color;
+        context.rect(
+          size * subBlock.x + 1,
+          size * subBlock.y + 1,
+          size - 2,
+          size - 2,
+        );
+      }
+      context.fillStyle = `rgba(255, 255, 255, ${0.8 * percComplete})`;
+      context.fill();
+
+      if (percComplete < 1) {
+        // Draw the block outline if row is not complete
+        context.stroke();
+      }
+    });
   }
 
   makeNotActive() {
@@ -110,7 +155,7 @@ class Block {
     const canApplyDelta = (!willCollideWithWall && !willCollideWithOtherBlock);
     if (canApplyDelta) {
       this.applyMovement(movementDelta);
-    } else if (movementDelta.x === 0 && movementDelta.y === 1) {
+    } else if (movementDelta.x === 0 && movementDelta.y > 0) {
       this.makeNotActive();
     } else if (movementDelta.x === 0 && movementDelta.y === 0) {
       // We're done
@@ -131,12 +176,12 @@ class Block {
   checkIfWillCollideWithWall(movmentDelta) {
     return this.subBlocks.some((subBlock) => {
       const newSubBlockPos = {
-        x: subBlock.x + movmentDelta.x,
-        y: subBlock.y + movmentDelta.y,
+        x: Math.round((subBlock.x + movmentDelta.x) * 10) / 10,
+        y: Math.round((subBlock.y + movmentDelta.y) * 10) / 10,
       };
 
       // Check right wall
-      if (newSubBlockPos.x >= GAME.gridSize.width) {
+      if (newSubBlockPos.x + 1 > GAME.gridSize.width) {
         return true;
       }
 
@@ -146,12 +191,7 @@ class Block {
       }
 
       // Check floor
-      if (newSubBlockPos.y >= GAME.gridSize.height) {
-        return true;
-      }
-
-      // Check right ceiling?
-      if (newSubBlockPos.y < 0) {
+      if (newSubBlockPos.y + 1 > GAME.gridSize.height) {
         return true;
       }
 
@@ -171,8 +211,11 @@ class Block {
         if (blockOther.id === this.id) {
           return false;
         }
-        return blockOther.subBlocks.some(subBlockOther => (
-          newSubBlockPos.x === subBlockOther.x && newSubBlockPos.y === subBlockOther.y
+        return !blockOther.subBlocks.every(subBlockOther => (
+          newSubBlockPos.x > subBlockOther.x + 0.9
+          || newSubBlockPos.x + 0.9 < subBlockOther.x
+          || newSubBlockPos.y + 0.9 < subBlockOther.y
+          || newSubBlockPos.y > subBlockOther.y + 0.9
         ));
       });
     });
