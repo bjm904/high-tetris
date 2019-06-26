@@ -1,7 +1,6 @@
 const pressedKeys = new Set();
 
 window.onkeydown = (event) => {
-  console.log(event.keyCode)
   pressedKeys.add(event.keyCode);
 };
 window.onkeyup = (event) => {

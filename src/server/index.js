@@ -33,14 +33,16 @@ wss.on('connection', (ws) => {
       }
     });
 
-    const allClientsInReadyStatus = clients.every(c => c.lastGameData && c.lastGameData.status === 'ready');
-    if (allClientsInReadyStatus) {
-      const beginMessage = {
-        command: 'beginGame',
-      };
-      clients.forEach((client) => {
-        client.send(JSON.stringify(beginMessage));
-      });
+    if (clients.length > 1) {
+      const allClientsInReadyStatus = clients.every(c => c.lastGameData && c.lastGameData.status === 'ready');
+      if (allClientsInReadyStatus) {
+        const beginMessage = {
+          command: 'beginGame',
+        };
+        clients.forEach((client) => {
+          client.send(JSON.stringify(beginMessage));
+        });
+      }
     }
   });
 
