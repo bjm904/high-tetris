@@ -18,20 +18,29 @@ wss.on('connection', (ws) => {
   ws.on('message', (messageRaw) => {
     const message = JSON.parse(messageRaw);
 
-    if (message.gameData) {
+    if (message.command === 'gameDataUpdate') {
       ws.gameId = message.gameData.id;
       ws.lastGameData = message.gameData;
-    }
 
-    const messageToSend = {
-      command: 'opponentDataUpdate',
-      opponentData: message.gameData,
-    };
-    clients.forEach((client) => {
-      if (client.id !== ws.id) {
-        client.send(JSON.stringify(messageToSend));
-      }
-    });
+      const messageToSend = {
+        command: 'opponentDataUpdate',
+        opponentData: message.gameData,
+      };
+      clients.forEach((client) => {
+        if (client.id !== ws.id) {
+          client.send(JSON.stringify(messageToSend));
+        }
+      });
+    } else if (message.command === 'removeRow') {
+      const messageToSend = {
+        command: 'removeRow',
+      };
+      clients.forEach((client) => {
+        if (client.id !== ws.id) {
+          client.send(JSON.stringify(messageToSend));
+        }
+      });
+    }
 
     if (clients.length > 1) {
       const allClientsInReadyStatus = clients.every(c => c.lastGameData && c.lastGameData.status === 'ready');

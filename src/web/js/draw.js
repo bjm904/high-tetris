@@ -55,6 +55,12 @@ const drawGame = (context, gameData) => {
     context.fillText('READY! Waiting for others', context.canvas.width / 2, context.canvas.height / 2);
   }
 
+  if (gameData.flashScreen) {
+    // Add layer for darken
+    context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+  }
+
   // Draw player name
   context.fillStyle = 'white';
   context.font = '25px Calibri';

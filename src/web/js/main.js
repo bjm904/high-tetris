@@ -13,6 +13,7 @@ const GameLoop = () => {
       GAME.status = 'ready';
     } else if (GAME.status === 'running') {
       let thereIsAnActiveBlock = false;
+      const rows = [];
       GAME.blocks.forEach((block) => {
         if (block.isActive) {
           // Set our flag for knowign there is an active block
@@ -23,19 +24,36 @@ const GameLoop = () => {
             y: 1,
           };
 
-          if (PressedKeys.has(37)) {
+          if (PressedKeys.has(37) || PressedKeys.has(65)) {
             // Left Arrow
             movementDelta.x = -1;
-          } else if (PressedKeys.has(39)) {
+          } else if (PressedKeys.has(39) || PressedKeys.has(68)) {
             // Right Arrow
             movementDelta.x = 1;
           }
-          if (PressedKeys.has(40)) {
+          if (PressedKeys.has(40) || PressedKeys.has(83)) {
             // Down Arrow
             movementDelta.y = 2;
           }
 
           block.tryToApplyMovement(movementDelta);
+        }
+
+        block.subBlocks.forEach((subBlock) => {
+          rows[subBlock.y] = rows[subBlock.y] || 0;
+          rows[subBlock.y] += 1;
+        });
+      });
+
+      // Check for full rows
+      rows.forEach((row, rowNum) => {
+        if (row > GAME.gridSize.width * 0.5) {
+          if (!GAME.rowAlreadyCounted[rowNum]) {
+            GAME.rowAlreadyCounted[rowNum] = true;
+            socket.send({
+              command: 'removeRow',
+            });
+          }
         }
       });
 
@@ -65,9 +83,11 @@ const GameLoop = () => {
 };
 
 const gameInit = () => {
+  let playerName = window.prompt('Enter your name') || 'Idiot';
+  playerName = playerName.substr(0, 20);
   GAME = {
+    playerName,
     id: Math.random(),
-    playerName: window.prompt('Enter your name'),
     blocks: [],
     gridSize: {
       height: 32,
@@ -75,9 +95,11 @@ const gameInit = () => {
       size: 20,
     },
     lastTickTime: 0,
-    tickInterval: 100,
+    tickInterval: 40,
     status: 'waiting',
     opponents: [],
+    rowAlreadyCounted: [],
+    flashScreen: false,
   };
 
   const gameContainer = document.getElementById('gameContainer');

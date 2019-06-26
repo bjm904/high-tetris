@@ -42,6 +42,14 @@ const onmessage = (event) => {
     gameContainer.removeChild(canvasElementOpponent);
   } else if (message.command === 'beginGame') {
     GAME.status = 'running';
+  } else if (message.command === 'removeRow') {
+    GAME.blocks.forEach((block) => {
+      block.applyMovement({ x: 0, y: 5 });
+    });
+    GAME.flashScreen = true;
+    setTimeout(() => {
+      GAME.flashScreen = false;
+    }, 200);
   }
 };
 
@@ -82,6 +90,7 @@ socket.sendGameStateUpdate = () => {
   delete gameStateCopy.opponents;
 
   const message = {
+    command: 'gameDataUpdate',
     gameData: gameStateCopy,
   };
   socket.send(message);
